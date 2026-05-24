@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cherry Blossom QR — Web Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;1,500&family=Inter:wght@400;500&display=swap"
+  rel="stylesheet"
+/>
+<style>
+  :root {
+    --ink: #2a1f1a;
+    --panel: rgba(255, 255, 255, 0.78);
+    --shadow: 0 8px 28px rgba(80, 30, 30, 0.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(ellipse 70% 50% at 50% 25%, #ffe5d6 0%, transparent 60%),
+      linear-gradient(180deg, #fff1ec 0%, #f6e3d9 55%, #efd7c4 100%);
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.16 0 0 0 0 0.11 0 0 0 0 0.08 0 0 0 0.04 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    opacity: 0.55;
+    mix-blend-mode: multiply;
+    z-index: 1;
+  }
+
+  #scene-canvas {
+    position: fixed; inset: 0;
+    width: 100%; height: 100%;
+    cursor: default;
+    z-index: 0;
+  }
+
+  #ui {
+    position: fixed;
+    top: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.86);
+    padding: 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(42, 31, 26, 0.12);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow:
+      0 0 0 8px rgba(255, 255, 255, 0.34),
+      0 12px 34px rgba(80, 30, 30, 0.13);
+    z-index: 10;
+    align-items: center;
+    transition:
+      border-color 0.18s ease,
+      box-shadow 0.18s ease,
+      background 0.18s ease;
+  }
+  #ui:focus-within {
+    background: rgba(255, 255, 255, 0.94);
+    border-color: rgba(214, 94, 130, 0.48);
+    box-shadow:
+      0 0 0 8px rgba(255, 255, 255, 0.36),
+      0 0 0 11px rgba(214, 94, 130, 0.18),
+      0 16px 42px rgba(80, 30, 30, 0.16);
+  }
+  #ui input {
+    border: none;
+    outline: none;
+    padding: 14px 30px;
+    font-size: 18px;
+    font-family: inherit;
+    border-radius: 999px;
+    background: transparent;
+    min-width: 420px;
+    color: var(--ink);
+  }
+  #ui input::placeholder { color: rgba(42, 31, 26, 0.4); }
+  #ui button {
+    border: 1px solid rgba(42, 31, 26, 0.16);
+    padding: 13px 24px;
+    font-size: 15px;
+    font-family: inherit;
+    letter-spacing: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.56);
+    color: var(--ink);
+    cursor: pointer;
+    line-height: 1;
+    white-space: nowrap;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease,
+      transform 0.15s ease;
+  }
+  #ui button:hover {
+    background: rgba(255, 255, 255, 0.78);
+    border-color: rgba(42, 31, 26, 0.28);
+    transform: scale(1.02);
+  }
+  #ui button.ghost {
+    background: rgba(255, 255, 255, 0.56);
+  }
+
+  .brand {
+    position: fixed;
+    top: 24px;
+    left: 26px;
+    z-index: 10;
+    color: rgba(42, 31, 26, 0.55);
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 16px;
+  }
+
+  #hint {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(42, 31, 26, 0.45);
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    z-index: 10;
+    pointer-events: none;
+    user-select: none;
+  }
+  #hint span {
+    display: block;
+    line-height: 1.9;
+  }
+
+  #hud {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 10;
+    max-width: min(320px, calc(100vw - 48px));
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.62);
+    color: rgba(42, 31, 26, 0.62);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    font-size: 11px;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+  }
+
+  @media (max-width: 640px) {
+    #ui { width: calc(100vw - 28px); }
+    #ui input { min-width: 0; flex: 1; padding: 11px 14px; font-size: 15px; }
+    #ui button { padding: 11px 13px; font-size: 12px; }
+    .brand { font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+  <canvas id="scene-canvas"></canvas>
+  <p class="brand">在你的心里种上一株樱花</p>
+  <div id="ui">
+    <input id="content" type="text" value="www.ilililab.de" placeholder="URL or text..." />
+    <button id="toggle" class="ghost">切换 2D ↔ 3D</button>
+  </div>
+  <p id="hint">
+    <span>点击画面切换平面 · 立体视图</span>
+    <span>在提示框输入转为二维码的内容</span>
+  </p>
+  <p id="hud" aria-live="polite"></p>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+
+    // ===== Constants =======================================================
+    const BLOCK_SIZE = 1.0;
+    const CUBE_HEIGHT = 1.0;
+    const TRUNK_RADIUS = 2.6;
+    const TRUNK_LAYERS = 12;
+    const MAX_CANOPY_LAYERS = 12;
+    const CANOPY_OUTER_RADIUS_FACTOR = 0.46;
+
+    const COLOR = {
+      canopy: new THREE.Color('#FFB7C5'),
+      trunk:  new THREE.Color('#7A5236'),
+      grass:  new THREE.Color('#5E9F69'),
+      dirt:   new THREE.Color('#D7BD96'),
+      // 2D scan palette — each color is a deeply darkened version of its 3D counterpart.
+      // 2D view ≈ a "top-down look at the same tree", not a pure B&W chart.
+      // Tuned so dark-cluster luma sits around 30–40 and dirt around ~225,
+      // giving a contrast ratio that standard QR scanners read cleanly.
+      scanCanopy: new THREE.Color('#3D1622'),  // deep wine — canopy from above
+      scanTrunk:  new THREE.Color('#2A1A12'),  // dark espresso — trunk core
+      scanGrass:  new THREE.Color('#102A18'),  // dark moss — grass blanket
+      scanDirt:   new THREE.Color('#EFE3CC'),  // warm cream — sun-lit dirt
+    };
+
+    // Shared uniform — bound into each cube material's shader.
+    // 0 = full 3D artistic colors + lighting; 1 = flat scan colors, no lighting.
+    const scanBlendUniform = { value: 0 };
+
+    function pseudoRandom(a, b) {
+      const x = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453;
+      return x - Math.floor(x);
+    }
+
+    // ===== Three.js setup ==================================================
+    const canvas = document.getElementById('scene-canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    const scene = new THREE.Scene();
+
+    // single orthographic camera, we drive it between two poses
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 500);
+
+    // ===== Lighting ========================================================
+    const ambient = new THREE.HemisphereLight(0xfff1e6, 0xc4a888, 0.72);
+    scene.add(ambient);
+
+    const lightTarget = new THREE.Object3D();
+    lightTarget.position.set(0, 4, 0);
+    scene.add(lightTarget);
+
+    const sun = new THREE.DirectionalLight(0xfff4e0, 1.55);
+    sun.position.set(32, 48, 20);
+    sun.target = lightTarget;
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    const sc = sun.shadow.camera;
+    sc.left = -40; sc.right = 40; sc.top = 40; sc.bottom = -40;
+    sc.near = 0.5; sc.far = 220;
+    sun.shadow.bias = -0.0009;
+    sun.shadow.normalBias = 0.025;
+    sun.shadow.radius = 4;
+    scene.add(sun);
+
+    const fill = new THREE.DirectionalLight(0xb6cffd, 0.34);
+    fill.position.set(-18, 14, -12);
+    scene.add(fill);
+
+    const cameraRight = new THREE.Vector3();
+    const cameraUp = new THREE.Vector3();
+    const cameraForward = new THREE.Vector3();
+    const sunAnchor = new THREE.Vector3(0, 4, 0);
+    const sunPos = new THREE.Vector3();
+
+    function updateLightingRig(scanBlend) {
+      camera.updateMatrixWorld();
+      cameraRight.setFromMatrixColumn(camera.matrixWorld, 0).normalize();
+      cameraUp.setFromMatrixColumn(camera.matrixWorld, 1).normalize();
+      camera.getWorldDirection(cameraForward).normalize();
+
+      lightTarget.position.copy(sunAnchor);
+      sunPos.copy(sunAnchor)
+        .addScaledVector(cameraRight, 34)
+        .addScaledVector(cameraUp, 42)
+        .addScaledVector(cameraForward, -22);
+      sun.position.copy(sunPos);
+
+      const shadowFade = 1 - scanBlend;
+      sun.intensity = THREE.MathUtils.lerp(1.1, 1.55, shadowFade);
+      fill.intensity = THREE.MathUtils.lerp(0.5, 0.34, shadowFade);
+      ambient.intensity = THREE.MathUtils.lerp(1.08, 0.72, shadowFade);
+    }
+
+    // ground plane (receives shadows only)
+    const groundMaterial = new THREE.ShadowMaterial({ opacity: 0.22 });
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(240, 240),
+      groundMaterial
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.001;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    function makeQr(qrText) {
+      let qr;
+      for (const lvl of ['H', 'Q', 'M', 'L']) {
+        try {
+          qr = qrcode(0, lvl);
+          qr.addData(qrText);
+          qr.make();
+          return qr;
+        } catch (_) { qr = null; }
+      }
+
+      qr = qrcode(0, 'L');
+      qr.addData(qrText);
+      qr.make();
+      return qr;
+    }
+
+    // ===== QR → block data =================================================
+    function buildBlocks(qrText) {
+      const qr = makeQr(qrText);
+      const N = qr.getModuleCount();
+      const quiet = 4;
+      const total = N + quiet * 2;
+      const cx = (total - 1) / 2;
+      const cy = (total - 1) / 2;
+      const canopyOuter = N * CANOPY_OUTER_RADIUS_FACTOR;
+
+      const groups = { canopy: [], trunk: [], grass: [], dirt: [] };
+
+      for (let row = -quiet; row < N + quiet; row++) {
+        for (let col = -quiet; col < N + quiet; col++) {
+          const insideQr = row >= 0 && row < N && col >= 0 && col < N;
+          const dark = insideQr && qr.isDark(row, col);
+          const gridCol = col + quiet;
+          const gridRow = row + quiet;
+          const dx = gridCol - cx;
+          const dz = gridRow - cy;
+          const dist = Math.hypot(dx, dz);
+          const wx = dx * BLOCK_SIZE;
+          const wz = dz * BLOCK_SIZE;
+
+          if (!dark) {
+            // light module / quiet zone → low block, readable from top-down
+            groups.dirt.push({ x: wx, y: 0, z: wz, scaleY: 0.35 });
+            continue;
+          }
+
+          if (dist < TRUNK_RADIUS) {
+            for (let i = 0; i < TRUNK_LAYERS; i++) {
+              groups.trunk.push({ x: wx, y: i * CUBE_HEIGHT, z: wz, scaleY: 1 });
+            }
+          } else if (dist < canopyOuter) {
+            // canopy dome: layer count peaks at center via t² falloff
+            const t = 1 - dist / canopyOuter;
+            const baseLayers = Math.max(3, Math.round(MAX_CANOPY_LAYERS * (0.25 + 0.75 * t * t)));
+            const extra = Math.floor(pseudoRandom(col, row) * 4);
+            const domeLift = Math.floor(t * 3);
+            const startY = TRUNK_LAYERS * 0.55 + domeLift;
+            const layers = baseLayers + extra;
+            for (let i = 0; i < layers; i++) {
+              groups.canopy.push({ x: wx, y: startY + i * CUBE_HEIGHT, z: wz, scaleY: 1 });
+            }
+          } else {
+            groups.grass.push({ x: wx, y: 0, z: wz, scaleY: 0.8 });
+          }
+        }
+      }
+      return { N: total, groups };
+    }
+
+    // ===== Instanced cube meshes ==========================================
+    // Cube geometry with origin at the bottom (so scaleY grows upward)
+    const cubeGeom = new THREE.BoxGeometry(BLOCK_SIZE * 0.985, CUBE_HEIGHT, BLOCK_SIZE * 0.985);
+    cubeGeom.translate(0, CUBE_HEIGHT * 0.5, 0);
+
+    let instancedMeshes = [];
+    let interactionSurface = null;
+    const tmpMat = new THREE.Matrix4();
+    const tmpColor = new THREE.Color();
+    const mixedColor = new THREE.Color();
+
+    function makeBlockMaterial(scanColor) {
+      const mat = new THREE.MeshStandardMaterial({ roughness: 0.86, metalness: 0.02 });
+      // Per-material scan-target uniform; switches to FLAT pure color at blend=1
+      const scanTargetUniform = { value: scanColor.clone() };
+      mat.userData.scanTarget = scanTargetUniform;
+      mat.onBeforeCompile = (shader) => {
+        shader.uniforms.uScanBlend  = scanBlendUniform;
+        shader.uniforms.uScanTarget = scanTargetUniform;
+
+        // Inject the scan override RIGHT AFTER tonemapping but BEFORE colorspace conversion.
+        // At that pipeline stage gl_FragColor is in linear space, matching THREE.Color's
+        // internal storage — so the mix is meaningful and the trailing <colorspace_fragment>
+        // chunk encodes the result to sRGB correctly for the framebuffer.
+        shader.fragmentShader = shader.fragmentShader
+          .replace(
+            '#include <common>',
+            `#include <common>
+             uniform float uScanBlend;
+             uniform vec3  uScanTarget;`
+          )
+          .replace(
+            '#include <tonemapping_fragment>',
+            `#include <tonemapping_fragment>
+             gl_FragColor.rgb = mix(gl_FragColor.rgb, uScanTarget, uScanBlend);`
+          );
+      };
+      return mat;
+    }
+
+    function buildInstanced(group, baseColor, scanColor, variation, castS, receiveS) {
+      if (!group.length) return null;
+      const mesh = new THREE.InstancedMesh(
+        cubeGeom,
+        makeBlockMaterial(scanColor),
+        group.length
+      );
+      mesh.castShadow = castS;
+      mesh.receiveShadow = receiveS;
+
+      // allocate per-instance color buffer
+      mesh.instanceColor = new THREE.InstancedBufferAttribute(
+        new Float32Array(group.length * 3), 3, false
+      );
+      mesh.userData.baseColors = new Float32Array(group.length * 3);
+      mesh.userData.basePositions = new Float32Array(group.length * 3);
+      mesh.userData.baseScales = new Float32Array(group.length);
+      mesh.userData.offsets = new Float32Array(group.length * 3);
+      mesh.userData.heightFactors = new Float32Array(group.length);
+      mesh.userData.burstDirections = new Float32Array(group.length * 3);
+      mesh.userData.scanColor = scanColor.clone();
+      mesh.userData.lastScanBlend = -1;
+
+      let minY = Infinity;
+      let maxY = -Infinity;
+      group.forEach((b) => {
+        minY = Math.min(minY, b.y);
+        maxY = Math.max(maxY, b.y);
+      });
+      const heightRange = Math.max(1, maxY - minY);
+
+      group.forEach((b, i) => {
+        tmpMat.makeScale(1, b.scaleY, 1);
+        tmpMat.setPosition(b.x, b.y, b.z);
+        mesh.setMatrixAt(i, tmpMat);
+        mesh.userData.basePositions[i * 3 + 0] = b.x;
+        mesh.userData.basePositions[i * 3 + 1] = b.y;
+        mesh.userData.basePositions[i * 3 + 2] = b.z;
+        mesh.userData.baseScales[i] = b.scaleY;
+        mesh.userData.heightFactors[i] = (b.y - minY) / heightRange;
+        const burstAngle = pseudoRandom(b.x + i * 1.37, b.y * 3.11 + b.z * 0.79) * Math.PI * 2;
+        mesh.userData.burstDirections[i * 3 + 0] = Math.cos(burstAngle);
+        mesh.userData.burstDirections[i * 3 + 1] = 0;
+        mesh.userData.burstDirections[i * 3 + 2] = Math.sin(burstAngle);
+
+        // subtle per-instance color jitter for organic feel
+        const v = (pseudoRandom(b.x + i * 0.13, b.z + i * 0.27) - 0.5) * variation;
+        tmpColor.copy(baseColor);
+        tmpColor.r = Math.max(0, Math.min(1, tmpColor.r + v));
+        tmpColor.g = Math.max(0, Math.min(1, tmpColor.g + v));
+        tmpColor.b = Math.max(0, Math.min(1, tmpColor.b + v));
+        mesh.userData.baseColors[i * 3 + 0] = tmpColor.r;
+        mesh.userData.baseColors[i * 3 + 1] = tmpColor.g;
+        mesh.userData.baseColors[i * 3 + 2] = tmpColor.b;
+        mesh.setColorAt(i, tmpColor);
+      });
+
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      return mesh;
+    }
+
+    function applyScanStyle(blend) {
+      const t = Math.round(blend * 100) / 100;
+      instancedMeshes.forEach((mesh) => {
+        if (!mesh.instanceColor || mesh.userData.lastScanBlend === t) return;
+        const base = mesh.userData.baseColors;
+        const scan = mesh.userData.scanColor;
+        for (let i = 0; i < mesh.count; i++) {
+          mixedColor.setRGB(base[i * 3], base[i * 3 + 1], base[i * 3 + 2]).lerp(scan, t);
+          mesh.setColorAt(i, mixedColor);
+        }
+        mesh.instanceColor.needsUpdate = true;
+        mesh.userData.lastScanBlend = t;
+      });
+
+      const shadows = 1 - t;
+      groundMaterial.opacity = 0.28 * shadows;
+      renderer.shadowMap.enabled = t < 0.72;
+      instancedMeshes.forEach((mesh) => {
+        mesh.castShadow = t < 0.72;
+        mesh.receiveShadow = t < 0.84;
+      });
+    }
+
+    let qrSize = 33;
+    function rebuild(qrText) {
+      clearHover();
+      // dispose previous
+      instancedMeshes.forEach((m) => {
+        scene.remove(m);
+        m.material.dispose();
+      });
+      instancedMeshes = [];
+      if (interactionSurface) {
+        scene.remove(interactionSurface);
+        interactionSurface.geometry.dispose();
+        interactionSurface.material.dispose();
+        interactionSurface = null;
+      }
+
+      const { N, groups } = buildBlocks(qrText);
+      qrSize = N;
+
+      const m1 = buildInstanced(groups.canopy, COLOR.canopy, COLOR.scanCanopy, 0.12, true, true);
+      const m2 = buildInstanced(groups.trunk,  COLOR.trunk,  COLOR.scanTrunk,  0.10, true, true);
+      const m3 = buildInstanced(groups.grass,  COLOR.grass,  COLOR.scanGrass,  0.14, false, true);
+      const m4 = buildInstanced(groups.dirt,   COLOR.dirt,   COLOR.scanDirt,   0.06, false, true);
+      [m1, m2, m3, m4].forEach((m) => { if (m) { scene.add(m); instancedMeshes.push(m); } });
+
+      interactionSurface = new THREE.Mesh(
+        new THREE.PlaneGeometry(N * BLOCK_SIZE, N * BLOCK_SIZE),
+        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+      );
+      interactionSurface.rotation.x = -Math.PI / 2;
+      interactionSurface.position.y = 0.45;
+      scene.add(interactionSurface);
+
+      onResize();
+    }
+
+    // ===== Raycast hover ==================================================
+    const raycaster = new THREE.Raycaster();
+    const mouseNDC = new THREE.Vector2(-2, -2);   // start off-screen so no hover
+    const hud = document.getElementById('hud');
+    let pointerInside = false;
+    let pointerOnObject = false;
+
+    canvas.addEventListener('pointermove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseNDC.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+      mouseNDC.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+      pointerInside = true;
+    });
+    canvas.addEventListener('pointerleave', () => {
+      pointerInside = false;
+      pointerOnObject = false;
+      mouseNDC.set(-2, -2);
+      canvas.style.cursor = 'default';
+    });
+
+    const disturbancePoint = new THREE.Vector3();
+    let disturbanceActive = false;
+
+    function clearHover() {
+      disturbanceActive = false;
+      hud.textContent = '';
+    }
+
+    function setHoverTargetState(active) {
+      pointerOnObject = active;
+      canvas.style.cursor = active ? 'pointer' : 'default';
+    }
+
+    function updateHover() {
+      if (progress > 0.86) { setHoverTargetState(false); clearHover(); return; }
+      if (!pointerInside) { setHoverTargetState(false); clearHover(); return; }
+
+      raycaster.setFromCamera(mouseNDC, camera);
+      const hits = raycaster.intersectObjects(instancedMeshes, false);
+      const surfaceHits = interactionSurface ? raycaster.intersectObject(interactionSurface, false) : [];
+      const hasTarget = hits.length > 0 || surfaceHits.length > 0;
+      setHoverTargetState(hasTarget);
+      if (!hasTarget) {
+        clearHover();
+        return;
+      }
+      disturbanceActive = true;
+      disturbancePoint.copy((hits[0] || surfaceHits[0]).point);
+      hud.textContent = `disturbance · (${disturbancePoint.x.toFixed(1)}, ${disturbancePoint.y.toFixed(1)}, ${disturbancePoint.z.toFixed(1)})`;
+      return;
+
+      let newMesh = null, newId = -1;
+      if (hits.length > 0) {
+        newMesh = hits[0].object;
+        newId   = hits[0].instanceId;
+      }
+      if (newMesh === hoveredMesh && newId === hoveredId) return;
+
+      clearHover();
+
+      if (newMesh && newId >= 0) {
+        hoveredMesh = newMesh;
+        hoveredId   = newId;
+        // matrix pop
+        hoveredMesh.getMatrixAt(hoveredId, savedMatrix);
+        savedMatrix.decompose(_pos, _quat, _scale);
+        _hoverPos.set(_pos.x, _pos.y + HOVER_LIFT, _pos.z);
+        _hoverScale.set(_scale.x * HOVER_SCALE_XZ, _scale.y * HOVER_SCALE_Y, _scale.z * HOVER_SCALE_XZ);
+        hoverMatrix.compose(_hoverPos, _quat, _hoverScale);
+        hoveredMesh.setMatrixAt(hoveredId, hoverMatrix);
+        hoveredMesh.instanceMatrix.needsUpdate = true;
+        // color highlight (brighter version of the existing color)
+        if (hoveredMesh.instanceColor) {
+          hoveredMesh.getColorAt(hoveredId, savedColor);
+          hoverColor.copy(savedColor).lerp(new THREE.Color(0xffffff), 0.45);
+          hoveredMesh.setColorAt(hoveredId, hoverColor);
+          hoveredMesh.instanceColor.needsUpdate = true;
+        }
+        // HUD readout
+        const kind = hoveredMesh === instancedMeshes[0] ? 'canopy' :
+                     hoveredMesh === instancedMeshes[1] ? 'trunk'  :
+                     hoveredMesh === instancedMeshes[2] ? 'grass'  : 'dirt';
+        hud.textContent = `${kind} · world (${_pos.x.toFixed(1)}, ${_pos.y.toFixed(1)}, ${_pos.z.toFixed(1)})`;
+      }
+    }
+
+    // ===== Camera transition (3D isometric ↔ 2D top-down) ==================
+    const DISPERSAL_CORE_RADIUS = 0.14;
+    const DISPERSAL_RADIUS = 0.36;
+    const DISPERSAL_PUSH = 6.4;
+    const DISPERSAL_VERTICAL_BIAS = 0.58;
+    const RETURN_EPSILON = 0.01;
+    const dispersalScreenPoint = new THREE.Vector3();
+    const screenPos = new THREE.Vector3();
+    const groundRight = new THREE.Vector3();
+    const groundUp = new THREE.Vector3();
+    const pushDir = new THREE.Vector3();
+    const randomBurstDir = new THREE.Vector3();
+
+    function updateDispersal(dt) {
+      const active = disturbanceActive && pointerOnObject && progress < 0.86;
+      const settle = Math.min(1, (active ? 16 : 9) * dt);
+
+      if (active) {
+        dispersalScreenPoint.set(mouseNDC.x, mouseNDC.y, 0);
+        groundRight.setFromMatrixColumn(camera.matrixWorld, 0).setY(0).normalize();
+        groundUp.setFromMatrixColumn(camera.matrixWorld, 1).setY(0).normalize();
+        if (groundUp.lengthSq() < 0.001) groundUp.set(0, 0, -1);
+      }
+
+      instancedMeshes.forEach((mesh, meshIndex) => {
+        const base = mesh.userData.basePositions;
+        const scales = mesh.userData.baseScales;
+        const offsets = mesh.userData.offsets;
+        const heightFactors = mesh.userData.heightFactors;
+        const burstDirections = mesh.userData.burstDirections;
+        if (!base || !scales || !offsets || !heightFactors || !burstDirections) return;
+
+        let changed = false;
+        for (let i = 0; i < mesh.count; i++) {
+          const j = i * 3;
+          const x = base[j];
+          const y = base[j + 1];
+          const z = base[j + 2];
+
+          let tx = 0, ty = 0, tz = 0;
+          if (active) {
+            screenPos.set(x, 0, z).project(camera);
+            let sx = screenPos.x - dispersalScreenPoint.x;
+            let sy = screenPos.y - dispersalScreenPoint.y;
+            const screenDist = Math.hypot(sx, sy);
+            if (screenDist < DISPERSAL_RADIUS) {
+              const falloff = screenDist <= DISPERSAL_CORE_RADIUS
+                ? 1
+                : Math.pow(1 - (screenDist - DISPERSAL_CORE_RADIUS) / (DISPERSAL_RADIUS - DISPERSAL_CORE_RADIUS), 2);
+              if (screenDist < 0.001) {
+                const angle = pseudoRandom(i + meshIndex * 97, y + z) * Math.PI * 2;
+                sx = Math.cos(angle);
+                sy = Math.sin(angle);
+              } else {
+                sx /= screenDist;
+                sy /= screenDist;
+              }
+              const push = DISPERSAL_PUSH * falloff;
+              pushDir.copy(groundRight).multiplyScalar(sx).addScaledVector(groundUp, sy).normalize();
+              const invLen = 1 / Math.hypot(1, DISPERSAL_VERTICAL_BIAS);
+              let horizontalPush = pushDir;
+              let horizontalBoost = 1;
+              let liftBoost = 1;
+              if (meshIndex === 0) {
+                const h = heightFactors[i];
+                const randomMix = 0.35 + h * 0.55;
+                randomBurstDir.set(
+                  burstDirections[j],
+                  burstDirections[j + 1],
+                  burstDirections[j + 2]
+                );
+                pushDir
+                  .multiplyScalar(1 - randomMix)
+                  .addScaledVector(randomBurstDir, randomMix)
+                  .normalize();
+                horizontalPush = pushDir;
+                horizontalBoost = 1.15 + h * 1.25;
+                liftBoost = 0.75 + h * 1.15;
+              }
+              tx = horizontalPush.x * invLen * push * horizontalBoost;
+              tz = horizontalPush.z * invLen * push * horizontalBoost;
+              ty = DISPERSAL_VERTICAL_BIAS * invLen * push * liftBoost;
+            }
+          }
+
+          const ox = offsets[j] + (tx - offsets[j]) * settle;
+          const oy = offsets[j + 1] + (ty - offsets[j + 1]) * settle;
+          const oz = offsets[j + 2] + (tz - offsets[j + 2]) * settle;
+
+          if (
+            Math.abs(ox - offsets[j]) > RETURN_EPSILON ||
+            Math.abs(oy - offsets[j + 1]) > RETURN_EPSILON ||
+            Math.abs(oz - offsets[j + 2]) > RETURN_EPSILON
+          ) {
+            changed = true;
+          }
+
+          offsets[j] = Math.abs(ox) < RETURN_EPSILON ? 0 : ox;
+          offsets[j + 1] = Math.abs(oy) < RETURN_EPSILON ? 0 : oy;
+          offsets[j + 2] = Math.abs(oz) < RETURN_EPSILON ? 0 : oz;
+
+          tmpMat.makeScale(1, scales[i], 1);
+          tmpMat.setPosition(x + offsets[j], y + offsets[j + 1], z + offsets[j + 2]);
+          mesh.setMatrixAt(i, tmpMat);
+        }
+
+        if (changed || active) mesh.instanceMatrix.needsUpdate = true;
+      });
+    }
+
+    const pose3D = {
+      target: new THREE.Vector3(0, 4, 0),
+      up:     new THREE.Vector3(0, 1, 0),
+    };
+    const pose2D = {
+      pos:    new THREE.Vector3(0, 80, 0.0001),
+      target: new THREE.Vector3(0, 0, 0),
+      up:     new THREE.Vector3(0, 0, -1),
+    };
+
+    let progress = 0;          // 0 = 3D, 1 = 2D
+    let progressTarget = 0;
+    const LERP_SPEED = 4.5;
+
+    // pos3D is animated by the loop — slow orbit when in 3D
+    const pos3D = new THREE.Vector3(28, 30, 28);
+
+    function easeInOutCubic(x) {
+      return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+    }
+
+    function applyCamera(p) {
+      const t = easeInOutCubic(p);
+      camera.position.lerpVectors(pos3D, pose2D.pos, t);
+      const target = new THREE.Vector3().lerpVectors(pose3D.target, pose2D.target, t);
+      camera.up.lerpVectors(pose3D.up, pose2D.up, t).normalize();
+      camera.lookAt(target);
+
+      // orthographic frustum sized by QR + aspect
+      const aspect = window.innerWidth / window.innerHeight;
+      // baseSize grows slightly in 3D so the tree fits in frame
+      const baseSize = (qrSize * 0.5 + 2) * THREE.MathUtils.lerp(1.35, 1.05, t);
+      let halfW, halfH;
+      if (aspect >= 1) { halfH = baseSize; halfW = baseSize * aspect; }
+      else             { halfW = baseSize; halfH = baseSize / aspect; }
+      camera.left = -halfW; camera.right = halfW;
+      camera.top  =  halfH; camera.bottom = -halfH;
+      camera.updateProjectionMatrix();
+    }
+
+    function onResize() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      renderer.setSize(w, h, false);
+      applyCamera(progress);
+    }
+
+    window.addEventListener('resize', onResize);
+
+    // ===== Interaction ====================================================
+    function toggleView() {
+      progressTarget = progressTarget === 0 ? 1 : 0;
+    }
+    canvas.addEventListener('pointerdown', (e) => {
+      // only toggle on canvas, not UI
+      if (e.target !== canvas) return;
+      toggleView();
+    });
+    document.getElementById('toggle').addEventListener('click', toggleView);
+
+    const contentInput = document.getElementById('content');
+    let rebuildTimer = 0;
+
+    function rebuildFromInput() {
+      const text = contentInput.value.trim() || 'www.ilililab.de';
+      rebuild(text);
+    }
+
+    function scheduleRebuild() {
+      window.clearTimeout(rebuildTimer);
+      rebuildTimer = window.setTimeout(rebuildFromInput, 180);
+    }
+
+    contentInput.addEventListener('input', scheduleRebuild);
+    contentInput.addEventListener('change', rebuildFromInput);
+    contentInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        window.clearTimeout(rebuildTimer);
+        rebuildFromInput();
+      }
+    });
+
+    // ===== Initial build + animation loop =================================
+    rebuildFromInput();
+
+    const clock = new THREE.Clock();
+    // smooth orbit angle so freeze ↔ resume doesn't snap
+    let orbitAngle = Math.PI * 0.25;
+
+    function loop() {
+      const dt = Math.min(0.05, clock.getDelta());
+
+      updateHover();
+
+      // slow orbit when in 3D and pointer NOT on the scene
+      const isInteracting = pointerOnObject;
+      const orbitFade = (1 - progress) * (isInteracting ? 0 : 1);
+      orbitAngle += dt * 0.18 * orbitFade;
+      const r = 36;
+      pos3D.set(Math.cos(orbitAngle) * r, 30, Math.sin(orbitAngle) * r);
+
+      // lerp progress toward target
+      progress += (progressTarget - progress) * Math.min(1, LERP_SPEED * dt);
+      if (Math.abs(progress - progressTarget) < 0.001) progress = progressTarget;
+
+      applyCamera(progress);
+      const scanBlend = easeInOutCubic(progress);
+      scanBlendUniform.value = scanBlend;
+      updateLightingRig(scanBlend);
+      applyScanStyle(scanBlend);
+      updateDispersal(dt);
+      renderer.render(scene, camera);
+      requestAnimationFrame(loop);
+    }
+    loop();
+  </script>
+</body>
+</html>
