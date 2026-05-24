@@ -6,24 +6,25 @@
 <title>Cherry Blossom QR — Web Demo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link
-  href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;1,500&family=Inter:wght@400;500&display=swap"
-  rel="stylesheet"
-/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
 <style>
   :root {
-    --ink: #2a1f1a;
-    --panel: rgba(255, 255, 255, 0.78);
-    --shadow: 0 8px 28px rgba(80, 30, 30, 0.10);
+    --ink: #201d1d;
+    --canvas: #fdfcfc;
+    --surface-soft: #f8f7f7;
+    --surface-card: #f1eeee;
+    --surface-dark: #201d1d;
+    --on-dark: #fdfcfc;
+    --hairline: rgba(32, 29, 29, 0.12);
+    --hairline-strong: #646262;
+    --mute: #646262;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { width: 100%; height: 100%; overflow: hidden; }
   body {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
     color: var(--ink);
-    background:
-      radial-gradient(ellipse 70% 50% at 50% 25%, #ffe5d6 0%, transparent 60%),
-      linear-gradient(180deg, #fff1ec 0%, #f6e3d9 55%, #efd7c4 100%);
+    background-color: var(--canvas);
   }
   body::before {
     content: "";
@@ -43,145 +44,182 @@
     z-index: 0;
   }
 
-  #ui {
+  #navbar {
     position: fixed;
-    top: 22px;
-    left: 50%;
-    transform: translateX(-50%);
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 64px;
     display: flex;
-    gap: 8px;
-    background: rgba(255, 255, 255, 0.86);
-    padding: 8px;
-    border-radius: 999px;
-    border: 1px solid rgba(42, 31, 26, 0.12);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    box-shadow:
-      0 0 0 8px rgba(255, 255, 255, 0.34),
-      0 12px 34px rgba(80, 30, 30, 0.13);
-    z-index: 10;
+    justify-content: space-between;
     align-items: center;
-    transition:
-      border-color 0.18s ease,
-      box-shadow 0.18s ease,
-      background 0.18s ease;
-  }
-  #ui:focus-within {
-    background: rgba(255, 255, 255, 0.94);
-    border-color: rgba(214, 94, 130, 0.48);
-    box-shadow:
-      0 0 0 8px rgba(255, 255, 255, 0.36),
-      0 0 0 11px rgba(214, 94, 130, 0.18),
-      0 16px 42px rgba(80, 30, 30, 0.16);
-  }
-  #ui input {
-    border: none;
-    outline: none;
-    padding: 14px 30px;
-    font-size: 18px;
-    font-family: inherit;
-    border-radius: 999px;
-    background: transparent;
-    min-width: 420px;
-    color: var(--ink);
-  }
-  #ui input::placeholder { color: rgba(42, 31, 26, 0.4); }
-  #ui button {
-    border: 1px solid rgba(42, 31, 26, 0.16);
-    padding: 13px 24px;
-    font-size: 15px;
-    font-family: inherit;
-    letter-spacing: 0;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.56);
-    color: var(--ink);
-    cursor: pointer;
-    line-height: 1;
-    white-space: nowrap;
-    transition:
-      border-color 0.15s ease,
-      background 0.15s ease,
-      transform 0.15s ease;
-  }
-  #ui button:hover {
-    background: rgba(255, 255, 255, 0.78);
-    border-color: rgba(42, 31, 26, 0.28);
-    transform: scale(1.02);
-  }
-  #ui button.ghost {
-    background: rgba(255, 255, 255, 0.56);
+    padding: 0 24px;
+    background: rgba(253, 252, 252, 0.85);
+    border-bottom: 1px solid var(--hairline);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 100;
   }
 
   .brand {
-    position: fixed;
-    top: 24px;
-    left: 26px;
-    z-index: 10;
-    color: rgba(42, 31, 26, 0.55);
-    font-family: 'Fraunces', serif;
-    font-style: italic;
-    font-size: 16px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+
+  #ui {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .input-wrapper {
+    display: flex;
+    align-items: center;
+    background: var(--surface-soft);
+    border: 1px solid var(--hairline);
+    border-radius: 4px;
+    padding: 0 12px;
+    height: 38px;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+  }
+  .input-wrapper:focus-within {
+    background: var(--canvas);
+    border-color: var(--ink);
+  }
+  .input-wrapper .input-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--mute);
+    margin-right: 8px;
+    user-select: none;
+  }
+  .input-wrapper input {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--ink);
+    width: 320px;
+  }
+  .input-wrapper input::placeholder {
+    color: #9a9898;
+  }
+
+  #toggle {
+    background: var(--surface-dark);
+    color: var(--on-dark);
+    border: none;
+    outline: none;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 4px;
+    padding: 0 16px;
+    height: 38px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    white-space: nowrap;
+    letter-spacing: 0.05em;
+  }
+  #toggle:active {
+    background: #0f0000;
   }
 
   #hint {
     position: fixed;
     bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%);
-    color: rgba(42, 31, 26, 0.45);
-    font-size: 11px;
-    letter-spacing: 0.32em;
-    text-transform: uppercase;
-    z-index: 10;
+    left: 24px;
+    z-index: 100;
     pointer-events: none;
     user-select: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
   }
-  #hint span {
-    display: block;
-    line-height: 1.9;
+  .hint-item {
+    font-size: 11px;
+    color: var(--mute);
+    letter-spacing: 0.05em;
+    background: rgba(253, 252, 252, 0.85);
+    border: 1px solid var(--hairline);
+    border-left: 3px solid var(--ink);
+    padding: 6px 10px;
+    border-radius: 2px;
+    width: fit-content;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
   }
 
   #hud {
     position: fixed;
     right: 24px;
     bottom: 24px;
-    z-index: 10;
-    max-width: min(320px, calc(100vw - 48px));
-    padding: 8px 12px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.62);
-    color: rgba(42, 31, 26, 0.62);
-    box-shadow: var(--shadow);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    z-index: 100;
     font-size: 11px;
-    line-height: 1.3;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    background: var(--surface-dark);
+    color: #9a9898;
+    border-radius: 4px;
+    padding: 8px 12px;
+    border: 1px solid var(--hairline-strong);
     pointer-events: none;
+    font-family: inherit;
+    transition: opacity 0.15s ease;
+  }
+  #hud:empty {
+    opacity: 0;
   }
 
-  @media (max-width: 640px) {
-    #ui { width: calc(100vw - 28px); }
-    #ui input { min-width: 0; flex: 1; padding: 11px 14px; font-size: 15px; }
-    #ui button { padding: 11px 13px; font-size: 12px; }
-    .brand { font-size: 13px; }
+  @media (max-width: 768px) {
+    #navbar {
+      height: auto;
+      flex-direction: column;
+      align-items: stretch;
+      padding: 16px;
+      gap: 12px;
+    }
+    #ui {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+    }
+    .input-wrapper {
+      width: 100%;
+    }
+    .input-wrapper input {
+      width: 100%;
+    }
+    #hint {
+      bottom: auto;
+      top: 140px;
+      left: 16px;
+      right: 16px;
+    }
+    .hint-item {
+      width: 100%;
+    }
   }
 </style>
 </head>
 <body>
   <canvas id="scene-canvas"></canvas>
-  <p class="brand">在你的心里种上一株樱花</p>
-  <div id="ui">
-    <input id="content" type="text" value="www.ilililab.de" placeholder="URL or text..." />
-    <button id="toggle" class="ghost">切换 2D ↔ 3D</button>
+  <header id="navbar">
+    <div class="brand">[+] CHERRY_QR // V1.0</div>
+    <div id="ui">
+      <div class="input-wrapper">
+        <span class="input-label">[INPUT]</span>
+        <input id="content" type="text" value="www.ilililab.de" placeholder="URL or text..." />
+      </div>
+      <button id="toggle">切换 2D ↔ 3D</button>
+    </div>
+  </header>
+  <div id="hint">
+    <div class="hint-item">[-] CLICK SCREEN TO TOGGLE VIEW</div>
+    <div class="hint-item">[-] ENTER TEXT TO REBUILD QR</div>
   </div>
-  <p id="hint">
-    <span>点击画面切换平面 · 立体视图</span>
-    <span>在提示框输入转为二维码的内容</span>
-  </p>
-  <p id="hud" aria-live="polite"></p>
+  <div id="hud" aria-live="polite"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
   <script type="importmap">
@@ -214,7 +252,7 @@
       scanCanopy: new THREE.Color('#3D1622'),  // deep wine — canopy from above
       scanTrunk:  new THREE.Color('#2A1A12'),  // dark espresso — trunk core
       scanGrass:  new THREE.Color('#102A18'),  // dark moss — grass blanket
-      scanDirt:   new THREE.Color('#EFE3CC'),  // warm cream — sun-lit dirt
+      scanDirt:   new THREE.Color('#fdfcfc'),  // warm cream (#fdfcfc) — matches canvas color
     };
 
     // Shared uniform — bound into each cube material's shader.
@@ -581,7 +619,7 @@
       }
       disturbanceActive = true;
       disturbancePoint.copy((hits[0] || surfaceHits[0]).point);
-      hud.textContent = `disturbance · (${disturbancePoint.x.toFixed(1)}, ${disturbancePoint.y.toFixed(1)}, ${disturbancePoint.z.toFixed(1)})`;
+      hud.innerHTML = `<span style="color: #30d158; margin-right: 6px;">●</span>TUI::DISTURBANCE [X:${disturbancePoint.x.toFixed(1)} Y:${disturbancePoint.y.toFixed(1)} Z:${disturbancePoint.z.toFixed(1)}]`;
       return;
 
       let newMesh = null, newId = -1;
