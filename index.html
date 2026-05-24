@@ -71,9 +71,18 @@
     letter-spacing: 0.05em;
     user-select: none;
   }
-  .brand .logo {
+  .brand .logo-link {
+    display: flex;
+    align-items: center;
     height: 24px;
+  }
+  .brand .logo {
+    height: 100%;
     width: auto;
+    transition: opacity 0.15s ease;
+  }
+  .brand .logo:hover {
+    opacity: 0.7;
   }
   .brand .logo path,
   .brand .logo rect {
@@ -218,7 +227,8 @@
   <canvas id="scene-canvas"></canvas>
   <header id="navbar">
     <div class="brand">
-      <svg class="logo" viewBox="0 0 559 191" xmlns="http://www.w3.org/2000/svg">
+      <a href="https://www.ilililab.de" target="_blank" rel="noopener noreferrer" class="logo-link">
+        <svg class="logo" viewBox="0 0 559 191" xmlns="http://www.w3.org/2000/svg">
         <g>
           <g transform="matrix(3.09508,0,0,3.09508,-841.911652,-146.765499)">
               <g>
@@ -347,6 +357,7 @@
           </g>
       </g>
       </svg>
+      </a>
       <span>[+] CHERRY_QR</span>
     </div>
     <div id="ui">
